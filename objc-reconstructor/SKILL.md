@@ -43,26 +43,29 @@ If the user has not yet exported the SQLite database, direct them to use the pro
 1. **Schema Analysis:** Analyze the `functions`, `pseudo_codes`, `asm_codes`, `symbols` tables in the schema.
 2. **Execution Loop:**
     - **Class Selection:** Find the first `{className}` in the `State File` marked `pending`, or exit if none remain.
-    - **Task for subagent:** Delegate to the `@general` (or `generalist`) subagent in Single-Threaded Blocking Mode to reconstruct `{className}` one by one.
-    - **Method Extraction:** For each method in `{className}` (e.g., `-[{className} ...]`), perform the following:
-        - **Strict Rules**:
-            - Always locate code via `ea` and not `name` for any function (including block functions).
-            - Always locate symbols via `ea` and not `name` for any symbol.
-        - **Code Retrieval**: Fetch `pseudo_codes.code`, and fetch `asm_codes.code` only if `pseudo_codes.code` is empty or invalid.
-        - **Block Resolution:** You MUST perform the steps sequentially. For every method, you must output an "Execution Trace Log":
-            - **Step 1:** Fetch `functions.xrefs` via the current method's `ea`.
-            - **Stack block:**
-                - **Step 2:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `functions.xrefs`, and record the function's `ea` and its `name`.
-                - **Step 3:** Fetch `pseudo_codes.code` via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
-            - **Global block:** 
-                - **Step 2:** Locate symbols where `name` matches the pattern `___block_literal_global*` in `functions.xrefs`, and record the symbol's `ea` and its `name`.
-                - **Step 3:** Fetch `symbols.xrefs` via the `ea` recorded in the last step.
-                - **Step 4:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `symbols.xrefs`, and record the `ea` of these functions.
-                - **Step 5:** Fetch the code via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
-        - **Recursive Inlining:**
-            - Parse the current method's `pseudo-code`. For every occurrence of a recorded `name`, replace it with the paired `code` rewritten as a `^` closure.
-            - Repeat this process recursively if the newly inlined code contains further block references.
-    - **Reconstruction:** Synthesize the implementation by merging the method logic and its resolved block dependencies recursively.
+    - **Task for subagent @general:** Single-Threaded Blocking Mode, to reconstruct `{className}` one by one.
+        - **YOU MUST** launch a subagent `@general `to reconstruct each `{className}`.
+            - Pass the class name, database path, and all extraction rules in the task prompt.
+            - Wait for the subagent to return before proceeding to the next class.
+        - **Method Extraction:** For each method in `{className}` (e.g., `-[{className} ...]`), perform the following:
+            - **Strict Rules**:
+                - Always locate code via `ea` and not `name` for any function (including block functions).
+                - Always locate symbols via `ea` and not `name` for any symbol.
+            - **Code Retrieval**: Fetch `pseudo_codes.code`, and fetch `asm_codes.code` only if `pseudo_codes.code` is empty or invalid.
+            - **Block Resolution:** You MUST perform the steps sequentially. For every method, you must output an "Execution Trace Log":
+                - **Step 1:** Fetch `functions.xrefs` via the current method's `ea`.
+                - **Stack block:**
+                    - **Step 2:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `functions.xrefs`, and record the function's `ea` and its `name`.
+                    - **Step 3:** Fetch `pseudo_codes.code` via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
+                - **Global block:** 
+                    - **Step 2:** Locate symbols where `name` matches the pattern `___block_literal_global*` in `functions.xrefs`, and record the symbol's `ea` and its `name`.
+                    - **Step 3:** Fetch `symbols.xrefs` via the `ea` recorded in the last step.
+                    - **Step 4:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `symbols.xrefs`, and record the `ea` of these functions.
+                    - **Step 5:** Fetch the code via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
+            - **Recursive Inlining:**
+                - Parse the current method's `pseudo-code`. For every occurrence of a recorded `name`, replace it with the paired `code` rewritten as a `^` closure.
+                - Repeat this process recursively if the newly inlined code contains further block references.
+        - **Reconstruction:** Synthesize the implementation by merging the method logic and its resolved block dependencies recursively.
         - **ObjC Idiomatic Lifting:** Rewrite the final logic into idiomatic ObjC, lifting low-level runtime calls to standard high-level ObjC syntax.
             - **Messaging:** e.g., `objc_msgSend`.
             - **Memory Management:** ARC/MRC boilerplate, e.g., `objc_retain`, `objc_release`, `objc_autoreleaseReturnValue`.
