@@ -1,0 +1,21 @@
+name: HelloWorld
+targets:
+  HelloWorld:
+    type: application
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - Sources
+      - path: jbdev.plist
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.HelloWorld
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        PROVISIONING_PROFILE_SPECIFIER: ""
+    postBuildScripts:
+      - script: bash jbdev.build.sh
+        name: JBDev Build Script
