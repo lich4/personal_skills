@@ -62,7 +62,7 @@ class ReconstructEngine:
             self.dump_data = self.script.exports_sync.dump()
 
             if self.dump_data:
-                temp_dir = Path(__file__).parent.parent / "temp"
+                temp_dir = Path.cwd() / "temp"
                 temp_dir.mkdir(exist_ok=True)
                 dump_path = temp_dir / "ui_dump.json"
                 with open(dump_path, "w", encoding="utf-8") as f:
@@ -71,7 +71,7 @@ class ReconstructEngine:
 
                 print("[*] Starting project generation...")
                 from project_generator import ProjectGenerator
-                output_dir = Path(__file__).parent.parent / "output"
+                output_dir = Path.cwd() / "output"
                 gen = ProjectGenerator(output_dir)
                 gen.generate(self.dump_data)
                 print(f"[*] Project generation complete. Output: {output_dir}")

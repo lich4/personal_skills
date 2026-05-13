@@ -17,7 +17,6 @@
 ### Auto Layout Deconstruction
 - Iterate through `constraints`.
 - Parse relationships (Leading, Trailing, Top, Bottom, Width, Height, Multipliers).
-- Preference: Generate code using `Masonry` or `SnapKit` syntax for readability.
 
 ### Semantic Containers
 - **UIStackView**: Extract `axis`, `distribution`, `alignment`, and `spacing`. Reconstruct as a `UIStackView` container rather than raw constraints.

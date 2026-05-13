@@ -1,24 +1,36 @@
 ---
 name: ios-ui-reconstruct
-description: Advanced 1:1 iOS UI reconstruction using Frida (attach-mode). Captures app hierarchies and metadata to generate a compilable Objective-C project. Requires the app to be running (use launch_app.py).
+description: Advanced 1:1 iOS UI reconstruction using Frida. Generates a complete, compilable Xcode-Objective-C project (UI and UI interaction only) with zero external dependencies.
 ---
 
 # iOS UI Reconstruct (Attach Mode)
 
-This skill reverse-engineers iOS application interfaces and reconstructs them as semantic Objective-C projects. It strictly follows an **attach-only** workflow to ensure stability and proper initialization of the Objective-C runtime.
+This skill reverse-engineers iOS application interfaces and reconstructs them as a **complete, compilable Xcode-Objective-C project** focusing exclusively on UI structure and interaction logic.
 
 ## Core Rules & Constraints
 
 - **Frida 17+ Modernization**: All Frida scripts MUST use `frida-compile` and `frida-objc-bridge`.
-  - JS source: `scripts/ui_reconstruct.js` (uses ESM `import ObjC from 'frida-objc-bridge'`).
-  - Compiled output: `scripts/_ui_reconstruct.js`.
-  - Python MUST load the compiled `_ui_reconstruct.js`.
-  - Communication MUST use `rpc.exports` instead of legacy `send`/`recv`.
-- **Attach-Only Execution**: Always attach to an existing process. Do NOT use `spawn` (`-f`) to execute scripts directly. 
-- **Frida CLI Hygiene**: When using `frida -l`, ALWAYS include the `-q` (quiet) flag to ensure the process exits after script execution instead of hanging in interactive mode.
-- **Data Persistence**: All temporary data must be saved in `./temp/`, and logs in `task.log`.
+- **Compilable Xcode-ObjC Project**: 
+  - The goal is to produce a project that can be opened and built in Xcode with minimal effort.
+  - The output project MUST be 100% Objective-C++ (using `.mm` extensions for implementations).
+  - Zero external dependencies: Use native UIKit `CGRect` frames for all layouts.
+  - Scope: Reconstruction is limited to the visual hierarchy (UI) and basic interaction stubs (UI Response).
+- **Data Persistence & Logging**: 
+  - All temporary data and scripts must be saved in `./temp/` (relative to the current working directory). 
+  - Every step (reasoning, commands, results) MUST be appended to `./task.log`.
+  - Do NOT save data inside the skill directory.
+
+## Project Structure (Output)
+...
+
+- `Info.plist`: Basic app configuration.
+- `Sources/main.mm`: Entry point.
+- `Sources/Classes/`: 
+  - `AppDelegate.{h,mm}`
+  - `[ViewController].{h,mm}` (Semantic UI reconstruction).
 
 ## Workflow Overview
+...
 
 1.  **Launch App**: Use `launch_app.py` to start the target app and wait for it to reach the foreground.
 2.  **Attach & Dump**: Use `reconstruct.py` or `frida -l` to attach and capture UI metadata.
