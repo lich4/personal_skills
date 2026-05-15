@@ -1,67 +1,59 @@
 ---
-name: ios-ui-reconstruct
-description: Advanced 1:1 iOS UI reconstruction using Frida. Generates a complete, compilable Xcode-Objective-C project (UI and UI interaction only) with zero external dependencies.
+name: ios-ui-capture
+description: Agent-led page-by-page iOS UI capture (JSON + PNG) using Frida primitives and deterministic state tracking.
 ---
 
-# iOS UI Reconstruct (Attach Mode)
+# iOS UI Capture (Agent-Led Strategy)
 
-This skill reverse-engineers iOS application interfaces and reconstructs them as a **complete, compilable Xcode-Objective-C project** focusing exclusively on UI structure and interaction logic.
+This skill provides an automated workflow to systematically traverse, capture, and track the states of all screens in an iOS application.
 
-## Core Rules & Constraints
+## 🛑 GLOBAL FRIDA MANDATES (ALWAYS FOLLOW)
 
-- **Frida 17+ Modernization**: All Frida scripts MUST use `frida-compile` and `frida-objc-bridge`.
-- **Compilable Xcode-ObjC Project**: 
-  - The goal is to produce a project that can be opened and built in Xcode with minimal effort.
-  - The output project MUST be 100% Objective-C++ (using `.mm` extensions for implementations).
-  - Zero external dependencies: Use native UIKit `CGRect` frames for all layouts.
-  - Scope: Reconstruction is limited to the visual hierarchy (UI) and basic interaction stubs (UI Response).
-- **Data Persistence & Logging**: 
-  - All temporary data and scripts must be saved in `./temp/` (relative to the current working directory). 
-  - Every step (reasoning, commands, results) MUST be appended to `./task.log`.
-  - Do NOT save data inside the skill directory.
+1.  **Mandatory Compilation**: EVERY Frida script must be compiled using **`frida-compile`** to bundle the **`frida-objc-bridge`**. All scripts must include `import "frida-objc-bridge";` at the top. Running uncompiled scripts will fail with "'ObjC' is not defined".
+2.  **CLI Quiet Mode**: When calling the base `frida` CLI (e.g., `frida -U ...`), you MUST always include the **`-q`** (quiet) flag to prevent entering interactive mode.
+3.  **Timeout Enforcement**: 
+    *   **Device Discovery**: Always use `frida.get_usb_device(timeout=5)` in Python scripts to avoid indefinite hangs.
+    *   **Subprocess Execution**: EVERY `subprocess.run` or `run_shell_command` involving Frida tools (`frida`, `frida-ps`, `frida-compile`, etc.) MUST include a reasonable **`timeout`** (e.g., 30-60 seconds).
+    *   **RPC Calls**: Ensure RPC calls have a 5-second timeout mechanism.
+4.  **Strict Foreground Enforcement**: Before ANY operation on a target app, ensure the app process exists and is the frontmost application. If not, force-kill and restart it. Wait at least **2 seconds** after a fresh launch before proceeding.
+5.  **5-Second Timeout & Restart**: If a Frida operation (attach, script load, or RPC call) does not return within **5 seconds**, terminate, force-kill the app, and re-attempt.
 
-## Project Structure (Output)
-...
+## 1. State Management (`./state.json`)
 
-- `Info.plist`: Basic app configuration.
-- `Sources/main.mm`: Entry point.
-- `Sources/Classes/`: 
-  - `AppDelegate.{h,mm}`
-  - `[ViewController].{h,mm}` (Semantic UI reconstruction).
+The state file tracks the processing status of each visited page and the navigation path required to reach it.
 
-## Workflow Overview
-...
+- `state`: The processing status (`pending` or `done`).
+- `path`: The sequence of click coordinates required to navigate from the home screen to this page.
 
-1.  **Launch App**: Use `launch_app.py` to start the target app and wait for it to reach the foreground.
-2.  **Attach & Dump**: Use `reconstruct.py` or `frida -l` to attach and capture UI metadata.
-3.  **Project Generation**: Convert the captured JSON into a structured Objective-C project.
-
-## Bundled Scripts
-
-- `scripts/launch_app.py`: Spawns and resumes the app by Bundle ID.
-- `scripts/reconstruct.py`: The main coordinator (finds PID, attaches, dumps UI, generates code).
-- `scripts/ui_reconstruct.js`: The Frida engine that traverses the UI tree.
-- `scripts/project_generator.py`: Converts metadata to code.
-
-## Getting Started
-
-### Step 1: Launch the Target App
-```bash
-# Example: Launch App
-python3 scripts/launch_app.py [AppBid]
+**Example format:**
+```json
+{
+    "XXXViewController-title1": {"state": "done", "path": []}, 
+    "YYYViewController-title2": {"state": "done", "path": [[111,222], [333,444]]}
+}
 ```
 
-### Step 2: Run Reconstruction (Attach Mode)
-```bash
-# Option A: Using the coordinator script
-python3 scripts/reconstruct.py [AppBid] [AppName]
+## 2. Core Workflow
 
-# Option B: Using Frida CLI directly (for debugging)
-frida -U -q -l scripts/ui_reconstruct.js -n [AppName] -e "rpc.exports.dump()"
-```
+0. **Initialize**: Create a dedicated working directory for your target app analysis and navigate to it. The tools will create `state.json`, `captures/`, and `temp/` in your current working directory. Initialize the `State file` (`./state.json`) to record the processing states of pages.
+1. **Launch**: Start the application and wait until it enters the home page. Obtain the Objective-C class name (`{XXXViewController}`) and the title of this page. Record `{XXXViewController-title}` in the `State file` with `state` set to `pending` and `path` as `[]`.
+2. **Capture**: Run the capture manager script via its absolute or relative path. Use it to dump the UI of the current page as `captures/{XXXViewController-title}.json` and take a screenshot saved as `captures/{XXXViewController-title}.png`. Once completed, update the `state` of `{XXXViewController-title}` to `done` in the `State file`.
+    ```bash
+    # Run from your current working directory (e.g. /tmp/admanager-analysis)
+    python3 /path/to/ios-ui-reconstruct/scripts/capture_manager.py <bundle_id> dump
+    ```
+3. **Analyze and Traverse**: The agent analyzes the list of clickable elements from the JSON dump. For each element:
+    - Click the element.
+    - If a **new page** is reached:
+        - Obtain the new page's Objective-C class name (`{XXXViewController}`) and title.
+        - Record `{XXXViewController-title}` in the `State file` with `state` set to `pending`, along with its current `path` (the sequence of previous clicks + the new click).
+        - Execute step **2** (Capture) for this new page.
+        - **Restart the app** and use the stored `path` to navigate back to the previous page. (Restarting and navigating via coordinate path is more stable than using a UI back button). Proceed to click the next element on the previous page.
+4. **Finish**: Terminate the process when all paths are explored and no more `pending` pages exist.
 
-## Safety & Best Practices
+## 3. Bundled Scripts
 
-- **Avoid UI Freeze**: All heavy operations are scheduled on the main queue with minimal overhead.
-- **Absolute Coordinates**: All view frames are converted to the window coordinate system for precision.
-- **Clean State**: Ensure keyboards and system alerts are dismissed before starting the dump.
+- `scripts/ui_capture.js`: Frida primitive implementations.
+- `scripts/capture_manager.py`: Command-line interface for the agent.
+- `scripts/app_control.py`: Process management (Launch/Kill).
+- `scripts/env_check.py`: Environment verification.

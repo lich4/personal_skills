@@ -5,9 +5,9 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.example.HelloWorld</string>
+	<string>com.example.AppName</string>
 	<key>CFBundleName</key>
-	<string>HelloWorld</string>
+	<string>AppName</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

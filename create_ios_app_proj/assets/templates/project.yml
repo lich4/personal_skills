@@ -1,6 +1,6 @@
-name: HelloWorld
+name: AppName
 targets:
-  HelloWorld:
+  AppName:
     type: application
     platform: iOS
     deploymentTarget: "12.0"
@@ -11,11 +11,13 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.HelloWorld
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.AppName
         CODE_SIGNING_ALLOWED: "NO"
-        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
         PROVISIONING_PROFILE_SPECIFIER: ""
+        CODE_SIGN_ENTITLEMENTS: AppName.ent
     postBuildScripts:
       - script: bash jbdev.build.sh
         name: JBDev Build Script
+

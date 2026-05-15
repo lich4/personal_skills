@@ -19,18 +19,19 @@ This skill automates the creation of a minimal iOS app project that can be built
 
 1.  **Initialize Project Directory**: Create a folder for the app.
 2.  **Copy Templates**: Copy the files from `assets/templates/` to the project folder.
-3.  **Configure App Name**: Rename `template.ent` to `<AppName>.ent`.
-4.  **Generate Project**: Run `xcodegen generate` in the project folder.
+3.  **Configure App Name**: 
+    - Rename `template.ent` to `<AppName>.ent`.
+    - In `project.yml`, replace all occurrences of `AppName` with your desired `<AppName>`.
+    - In `Info.plist`, update `CFBundleName` and `PRODUCT_BUNDLE_IDENTIFIER` as needed.
+4.  **Generate Project**: Run `xcodegen generate` in the project folder. This will create `<AppName>.xcodeproj`.
 5.  **Build**: Run `xcodebuild` targeting `generic/platform=iOS`.
 
-## Project Structure
+## Project Structure Consistency
 
-- `Sources/`: Objective-C source files.
-- `Info.plist`: App configuration.
-- `project.yml`: XcodeGen project specification.
-- `jbdev.plist`: JBDev configuration (type: app/jailbreak/trollstore).
-- `jbdev.build.sh`: Custom build script to handle `ldid` signing.
-- `<AppName>.ent`: Entitlements for the app.
+To ensure the build and signing scripts work correctly, maintain the following naming consistency:
+- **Project Name**: `<AppName>.xcodeproj` (generated from `project.yml` name)
+- **Target Name**: `<AppName>` (defined in `project.yml` targets)
+- **Entitlements File**: `<AppName>.ent` (referenced in `project.yml` settings)
 
 ## Example Commands
 
