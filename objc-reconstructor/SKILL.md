@@ -51,28 +51,31 @@ If the user has not yet exported the SQLite database, direct them to use the pro
             - **Strict Rules**:
                 - Always locate code via `ea` and not `name` for any function (including block functions).
                 - Always locate symbols via `ea` and not `name` for any symbol.
-            - **Code Retrieval**: Fetch `pseudo_codes.code`, and fetch `asm_codes.code` only if `pseudo_codes.code` is empty or invalid.
+            - **Code Retrieval**: Fetch `pseudo_codes.code` and `asm_codes.code`, as `$code` in following context. Pseudocode primary, assembly for reference.
             - **Block Resolution:** You MUST perform the steps sequentially. For every method, you must output an "Execution Trace Log":
                 - **Step 1:** Fetch `functions.xrefs` via the current method's `ea`.
                 - **Stack block:**
                     - **Step 2:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `functions.xrefs`, and record the function's `ea` and its `name`.
-                    - **Step 3:** Fetch `pseudo_codes.code` via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
+                    - **Step 3:** Fetch `$code` via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
                 - **Global block:** 
                     - **Step 2:** Locate symbols where `name` matches the pattern `___block_literal_global*` in `functions.xrefs`, and record the symbol's `ea` and its `name`.
                     - **Step 3:** Fetch `symbols.xrefs` via the `ea` recorded in the last step.
                     - **Step 4:** Locate functions where `name` matches the pattern `___*<parent_method_name>_block_invoke*` in `symbols.xrefs`, and record the `ea` of these functions.
                     - **Step 5:** Fetch the code via the `ea` recorded in the last step, and create a pair `name:code` with the `name` recorded in step 2.
+            - **Reconstruction:** Synthesize the implementation by merging the method logic and its resolved block dependencies recursively.
+            - **Interface Preservation Requirement:** Reconstructed source is not a refactor. It is a faithful source-level approximation of the binary. Do not improve architecture, introduce convenience APIs, add private helpers, rename selectors, or split logic into methods not present in IDA.
+                - **Do not invent methods:** The generated `.h` / `.mm` MUST NOT define any Objective-C method whose selector does not exist in the `functions` table for the current class.
+                - **No helper extraction:** Do not extract repeated logic into new helper methods, even if it improves readability. Inline duplicated logic into the original recovered methods.
             - **Recursive Inlining:**
-                - Parse the current method's `pseudo-code`. For every occurrence of a recorded `name`, replace it with the paired `code` rewritten as a `^` closure.
+                - Parse the current method's `$code`. For every occurrence of a recorded `name`, replace it with the paired `code` rewritten as a `^` closure.
                 - Repeat this process recursively if the newly inlined code contains further block references.
-        - **Reconstruction:** Synthesize the implementation by merging the method logic and its resolved block dependencies recursively.
-        - **ObjC Idiomatic Lifting:** Rewrite the final logic into idiomatic ObjC, lifting low-level runtime calls to standard high-level ObjC syntax.
-            - **Messaging:** e.g., `objc_msgSend`.
-            - **Memory Management:** ARC/MRC boilerplate, e.g., `objc_retain`, `objc_release`, `objc_autoreleaseReturnValue`.
-            - **Block Abstraction:** e.g., `__NSConcreteStackBlock` / `descriptor`, represent them only as `^ { ... }`.
-            - **Pointer Resolution:** Convert pointer arithmetic (e.g., `*(self + 0x10)`) into property or ivar access (e.g., `self.name`).
-            - **Pattern Restoration:** Abstract manual check-and-call sequences back into high-level idioms like `dispatch_once`.
-        - **Generation:** Generate `./proj/{className}.h` and `./proj/{className}.mm`.
+            - **ObjC Idiomatic Lifting:** Rewrite the final logic into idiomatic ObjC, lifting low-level runtime calls to standard high-level ObjC syntax.
+                - **Messaging:** e.g., `objc_msgSend`.
+                - **Memory Management:** ARC/MRC boilerplate, e.g., `objc_retain`, `objc_release`, `objc_autoreleaseReturnValue`.
+                - **Block Abstraction:** e.g., `__NSConcreteStackBlock` / `descriptor`, represent them only as `^ { ... }`.
+                - **Pointer Resolution:** Convert pointer arithmetic (e.g., `*(self + 0x10)`) into property or ivar access (e.g., `self.name`).
+                - **Pattern Restoration:** Abstract manual check-and-call sequences back into high-level idioms like `dispatch_once`.
+            - **Generation:** Generate `./proj/{className}.h` and `./proj/{className}.mm`.
     - **State Management:** Mark `{className}` as `done` in the `State File`.
 3. **Iteration:** Return to Step 1.
 
